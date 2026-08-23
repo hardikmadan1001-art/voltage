@@ -85,7 +85,7 @@ export default function Hero() {
       <motion.div style={{ opacity: detailsOpacity }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1, duration: 1 }} className="absolute bottom-8 left-6 right-6 z-20 flex items-end justify-between md:bottom-12 md:left-12 md:right-12">
           <div className="flex items-center gap-3">
             <span className="relative flex h-9 w-5 justify-center rounded-full border border-white/20 pt-1"><motion.i animate={{ y: [0, 13, 0] }} transition={{ duration: 1.9, repeat: Infinity, ease: 'easeInOut' }} className="block h-1.5 w-px bg-amber-glow" /></span>
-            <span className="font-mono text-[9px] uppercase tracking-[0.34em] text-zinc-500">Drag the guitar / scroll to calibrate</span>
+            <span className="font-mono text-[9px] uppercase tracking-[0.34em] text-zinc-500">Hover or drag the guitar / scroll to calibrate</span>
           </div>
         <div className="hidden grid-cols-3 gap-x-10 border-l border-white/10 pl-8 md:grid">
           {[['Body','Forged carbon'],['Profile','C / 0.83 in'],['Voice','AX-Custom A2']].map(([key, value]) => <div key={key}><p className="font-mono text-[8px] uppercase tracking-[0.3em] text-zinc-600">{key}</p><p className="mt-1 font-display text-lg text-zinc-200">{value}</p></div>)}

@@ -7,10 +7,11 @@ import * as THREE from 'three';
 type Props = {
   scrollYRef: MutableRefObject<number>;
   pointerRef: MutableRefObject<{ x: number; y: number }>;
+  hoveringRef: MutableRefObject<boolean>;
   accent?: string;
 };
 
-export default function GuitarModel({ scrollYRef, pointerRef, accent = '#d87a26' }: Props) {
+export default function GuitarModel({ scrollYRef, pointerRef, hoveringRef, accent = '#d87a26' }: Props) {
   const root = useRef<THREE.Group>(null);
   const body = useRef<THREE.Group>(null);
   const stringGroup = useRef<THREE.Group>(null);
@@ -20,11 +21,16 @@ export default function GuitarModel({ scrollYRef, pointerRef, accent = '#d87a26'
     const time = state.clock.getElapsedTime();
     const scroll = Math.min(scrollYRef.current * 0.00022, 0.34);
     const pointer = pointerRef.current;
-    const targetY = -0.34 + Math.sin(time * 0.22) * 0.055 + scroll + pointer.x * 0.18;
-    const targetX = -0.18 + Math.sin(time * 0.18) * 0.035 - pointer.y * 0.12;
-    root.current.rotation.y = THREE.MathUtils.damp(root.current.rotation.y, targetY, 4.5, state.clock.getDelta());
-    root.current.rotation.x = THREE.MathUtils.damp(root.current.rotation.x, targetX, 4.5, state.clock.getDelta());
-    root.current.position.y = -0.15 + Math.sin(time * 0.58) * 0.055;
+    const intensity = hoveringRef.current ? 1 : 0.32;
+    const targetY = -0.34 + Math.sin(time * 0.22) * 0.055 + scroll + pointer.x * 0.5 * intensity;
+    const targetX = -0.18 + Math.sin(time * 0.18) * 0.035 - pointer.y * 0.24 * intensity;
+    const targetZ = pointer.x * -0.11 * intensity;
+    const delta = state.clock.getDelta();
+    root.current.rotation.y = THREE.MathUtils.damp(root.current.rotation.y, targetY, 5.8, delta);
+    root.current.rotation.x = THREE.MathUtils.damp(root.current.rotation.x, targetX, 5.8, delta);
+    root.current.rotation.z = THREE.MathUtils.damp(root.current.rotation.z, targetZ, 5.8, delta);
+    root.current.position.x = THREE.MathUtils.damp(root.current.position.x, pointer.x * 0.42 * intensity, 5.8, delta);
+    root.current.position.y = -0.15 + Math.sin(time * 0.58) * 0.055 + pointer.y * 0.16 * intensity;
     if (body.current) body.current.rotation.z = Math.sin(time * 0.28) * 0.012;
     stringGroup.current?.children.forEach((string, index) => { string.position.y = Math.sin(time * 3.6 + index * 0.8) * 0.0015; });
   });

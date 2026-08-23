@@ -13,9 +13,10 @@ type Props = {
 
 type Pointer = { x: number; y: number };
 
-function Studio({ pointer, scrollY, withEffects }: {
+function Studio({ pointer, scrollY, hovering, withEffects }: {
   pointer: MutableRefObject<Pointer>;
   scrollY: MutableRefObject<number>;
+  hovering: MutableRefObject<boolean>;
   withEffects: boolean;
 }) {
   const keyLight = useRef<THREE.SpotLight>(null);
@@ -23,8 +24,9 @@ function Studio({ pointer, scrollY, withEffects }: {
   useFrame((state) => {
     const time = state.clock.getElapsedTime();
     if (keyLight.current) {
-      keyLight.current.position.x = 3.6 + Math.sin(time * 0.32) * 1.15;
-      keyLight.current.intensity = 110 + Math.sin(time * 0.7) * 16;
+      keyLight.current.position.x = 3.6 + Math.sin(time * 0.32) * 1.15 + pointer.current.x * 2.2;
+      keyLight.current.position.y = 6 + pointer.current.y * 1.1;
+      keyLight.current.intensity = (hovering.current ? 145 : 110) + Math.sin(time * 0.7) * 16;
     }
   });
 
@@ -36,7 +38,7 @@ function Studio({ pointer, scrollY, withEffects }: {
       <pointLight position={[0, -1.5, 4]} intensity={20} distance={9} color="#ff5a00" />
       <pointLight position={[-2, 3, 3]} intensity={14} distance={8} color="#ffbc75" />
       <Float speed={1.05} rotationIntensity={0.13} floatIntensity={0.32} floatingRange={[-0.08, 0.12]}>
-        <GuitarModel scrollYRef={scrollY} pointerRef={pointer} />
+        <GuitarModel scrollYRef={scrollY} pointerRef={pointer} hoveringRef={hovering} />
       </Float>
       {withEffects && (
         <>
@@ -53,6 +55,7 @@ function Studio({ pointer, scrollY, withEffects }: {
 export default function GuitarCanvas({ className = '', withEffects = true }: Props) {
   const pointer = useRef<Pointer>({ x: 0, y: 0 });
   const scrollY = useRef(0);
+  const hovering = useRef(false);
 
   useEffect(() => {
     const onScroll = () => { scrollY.current = window.scrollY; };
@@ -68,16 +71,21 @@ export default function GuitarCanvas({ className = '', withEffects = true }: Pro
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance', toneMappingExposure: 1.15 }}
         camera={{ position: [0, 1.05, 11.8], fov: 34 }}
         onPointerMove={(event) => {
+          hovering.current = true;
           pointer.current = {
             x: (event.clientX / window.innerWidth) * 2 - 1,
             y: -((event.clientY / window.innerHeight) * 2 - 1),
           };
         }}
+        onPointerLeave={() => {
+          hovering.current = false;
+          pointer.current = { x: 0, y: 0 };
+        }}
       >
         <color attach="background" args={['#050505']} />
         <fog attach="fog" args={['#050505', 8, 18]} />
         <Suspense fallback={null}>
-          <Studio pointer={pointer} scrollY={scrollY} withEffects={withEffects} />
+          <Studio pointer={pointer} scrollY={scrollY} hovering={hovering} withEffects={withEffects} />
         </Suspense>
       </Canvas>
     </div>
