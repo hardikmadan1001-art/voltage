@@ -7,6 +7,7 @@ import Loader from '@/components/Loader';
 import Navigation from '@/components/Navigation';
 import GrainOverlay from '@/components/GrainOverlay';
 import Vignette from '@/components/Vignette';
+import ScrollProgress from '@/components/ScrollProgress';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <CustomCursor />
           <GrainOverlay />
           <Vignette />
+          <ScrollProgress />
           <Navigation />
           <main className="relative">{children}</main>
         </SmoothScroll>

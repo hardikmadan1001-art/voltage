@@ -68,17 +68,9 @@ export default function Manufacturing() {
           onEnter: () => setActive(i),
           onEnterBack: () => setActive(i),
         });
-        gsap.fromTo(
-          step.querySelector('.mfg-inner'),
-          { opacity: 0, y: 60 },
-          {
-            opacity: 1,
-            y: 0,
-            duration: 0.8,
-            ease: 'power3.out',
-            scrollTrigger: { trigger: step, start: 'top 75%' },
-          }
-        );
+        // Visible-first: the chapter copy remains usable if a browser restores
+        // the page at any scroll position before ScrollTrigger initializes.
+        gsap.set(step.querySelector('.mfg-inner'), { opacity: 1, y: 0 });
       });
       // Progress bar
       gsap.to('.mfg-progress-fill', {

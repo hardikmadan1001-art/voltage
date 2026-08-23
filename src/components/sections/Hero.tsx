@@ -2,206 +2,93 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Magnetic from '../Magnetic';
 import GuitarCanvasLazy from '../three/GuitarCanvasLazy';
 
-export default function Hero() {
-  const ref = useRef<HTMLElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ['start start', 'end start'],
-  });
-  const y = useTransform(scrollYProgress, [0, 1], [0, 200]);
-  const opacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
-  const scale = useTransform(scrollYProgress, [0, 1], [1, 1.1]);
-  const [mounted, setMounted] = useState(false);
+if (typeof window !== 'undefined') gsap.registerPlugin(ScrollTrigger);
 
-  useEffect(() => setMounted(true), []);
+const ease = [0.16, 1, 0.3, 1] as const;
+
+export default function Hero() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const { scrollYProgress } = useScroll({ target: sectionRef, offset: ['start start', 'end start'] });
+  const copyY = useTransform(scrollYProgress, [0, 1], [0, -128]);
+  const copyOpacity = useTransform(scrollYProgress, [0, 0.58], [1, 0]);
+  const detailsOpacity = useTransform(scrollYProgress, [0, 0.35], [1, 0]);
+
+  useEffect(() => {
+    setMounted(true);
+    const context = gsap.context(() => {
+      if (!stageRef.current) return;
+      gsap.to(stageRef.current, {
+        scale: 1.14,
+        yPercent: 12,
+        ease: 'none',
+        scrollTrigger: { trigger: sectionRef.current, start: 'top top', end: 'bottom top', scrub: 1.1 },
+      });
+    }, sectionRef);
+    return () => context.revert();
+  }, []);
+
+  const jumpToCollection = () => document.querySelector('#collection')?.scrollIntoView({ behavior: 'smooth' });
+  const jumpToCraft = () => document.querySelector('#craftsmanship')?.scrollIntoView({ behavior: 'smooth' });
 
   return (
-    <section
-      ref={ref}
-      id="top"
-      className="relative h-[100svh] min-h-[700px] w-full overflow-hidden"
-    >
-      {/* Background grid + atmosphere */}
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_30%,rgba(255,138,28,0.18),transparent_60%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_80%,rgba(255,90,0,0.10),transparent_50%)]" />
-        <div
-          className="absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage:
-              'linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)',
-            backgroundSize: '80px 80px',
-            maskImage:
-              'radial-gradient(ellipse at center, black 30%, transparent 80%)',
-            WebkitMaskImage:
-              'radial-gradient(ellipse at center, black 30%, transparent 80%)',
-          }}
-        />
-        {/* Horizontal lines */}
-        <div className="absolute left-0 right-0 top-1/2 h-px bg-gradient-to-r from-transparent via-amber-glow/30 to-transparent" />
-      </div>
+    <section ref={sectionRef} id="top" className="relative min-h-[760px] h-[115svh] overflow-hidden bg-[#050505]">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_90%_80%_at_55%_45%,#27140b_0%,#0c0908_35%,#050505_72%)]" />
+      <div className="hero-grid absolute inset-0 opacity-40" />
+      <div className="pointer-events-none absolute left-1/2 top-0 h-[65vh] w-[70vw] -translate-x-1/2 bg-[radial-gradient(ellipse_at_top,rgba(255,173,102,.2),transparent_67%)] blur-2xl" />
+      <div className="absolute inset-x-0 bottom-0 z-[2] h-[45%] bg-gradient-to-t from-[#050505] via-[#050505]/30 to-transparent" />
 
-      {/* 3D Guitar Canvas */}
-      <motion.div
-        style={{ scale }}
-        className="absolute inset-0 z-[1]"
-      >
-        {mounted && (
-          <GuitarCanvasLazy className="h-full w-full" withEffects />
-        )}
-        {/* Spotlight cones */}
-        <div className="pointer-events-none absolute left-1/2 top-0 h-full w-[600px] -translate-x-1/2 opacity-60"
-             style={{ background: 'radial-gradient(ellipse at 50% 0%, rgba(255,138,28,0.18) 0%, transparent 60%)' }} />
+      <motion.div ref={stageRef} className="absolute inset-0 z-[1] origin-[55%_50%]">
+        {mounted && <GuitarCanvasLazy className="h-full w-full" withEffects />}
+        <div className="pointer-events-none absolute inset-x-[12%] top-[43%] h-px bg-gradient-to-r from-transparent via-amber-glow/50 to-transparent blur-[1px]" />
       </motion.div>
 
-      {/* Floor reflection gradient */}
-      <div className="reflection-floor pointer-events-none absolute bottom-0 left-0 right-0 h-40 z-[2]" />
-
-      {/* Text content */}
-      <motion.div
-        style={{ y, opacity }}
-        className="relative z-10 flex h-full flex-col justify-between p-6 md:p-12"
-      >
-        {/* Top metadata row */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 3.0, duration: 1, ease: [0.2, 0.8, 0.2, 1] }}
-          className="flex items-start justify-between"
-        >
-          <div className="flex flex-col gap-1">
-            <span className="font-mono text-[10px] uppercase tracking-[0.4em] text-amber-glow/80">
-              SERIES — 01
-            </span>
-            <span className="font-mono text-[10px] uppercase tracking-[0.4em] text-zinc-500">
-              Calibrated in California
-            </span>
+      <motion.div style={{ y: copyY, opacity: copyOpacity }} className="relative z-10 mx-auto flex h-[100svh] max-w-[1800px] flex-col justify-between px-6 pb-9 pt-28 md:px-12 md:pb-12 md:pt-32">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.9, ease }} className="flex items-start justify-between">
+          <div className="flex items-center gap-3 font-mono text-[9px] uppercase tracking-[0.35em] text-amber-glow/90 md:text-[10px]">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-glow shadow-[0_0_15px_#ff8a1c]" />
+            Series 01 / Live object
           </div>
-          <div className="hidden md:flex flex-col items-end gap-1">
-            <span className="font-mono text-[10px] uppercase tracking-[0.4em] text-zinc-500">
-              N° 0042 / ∞
-            </span>
-            <span className="font-mono text-[10px] uppercase tracking-[0.4em] text-zinc-600">
-              Est. 2026
-            </span>
+          <div className="hidden text-right font-mono text-[9px] uppercase leading-relaxed tracking-[0.32em] text-zinc-500 md:block">
+            Designed in California<br />Built without compromise
           </div>
         </motion.div>
 
-        {/* Center hero text — bottom aligned */}
-        <div className="flex flex-col items-start gap-8 pb-8 md:pb-16">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 3.0, duration: 1 }}
-            className="flex items-center gap-3"
-          >
-            <div className="h-px w-12 bg-amber-glow" />
-            <span className="font-mono text-[10px] uppercase tracking-[0.5em] text-amber-glow">
-              The AXIOM Standard
-            </span>
-          </motion.div>
-
-          <div className="overflow-hidden">
-            <motion.h1
-              initial={{ y: '110%' }}
-              animate={{ y: 0 }}
-              transition={{ delay: 3.1, duration: 1.2, ease: [0.2, 0.8, 0.2, 1] }}
-              className="font-display text-[clamp(2.5rem,8vw,8.5rem)] font-light leading-[0.85] tracking-[-0.04em]"
-            >
-              Engineered
-            </motion.h1>
+        <div className="grid grid-cols-1 items-end gap-8 pb-6 lg:grid-cols-12">
+          <div className="lg:col-span-7 xl:col-span-6">
+            <motion.div initial={{ opacity: 0, scaleX: 0 }} animate={{ opacity: 1, scaleX: 1 }} transition={{ delay: 0.36, duration: 1, ease }} className="mb-5 flex origin-left items-center gap-3 font-mono text-[9px] uppercase tracking-[0.38em] text-zinc-400">
+              <span className="block h-px w-10 bg-amber-glow" />
+              A new standard of feel
+            </motion.div>
+            <h1 className="font-display text-[clamp(4rem,10vw,10.5rem)] font-light leading-[0.76] tracking-[-0.065em] text-zinc-100">
+              <span>Make it</span>
+              <br />
+              <span className="gradient-text">matter.</span>
+            </h1>
           </div>
-          <div className="overflow-hidden">
-            <motion.h1
-              initial={{ y: '110%' }}
-              animate={{ y: 0 }}
-              transition={{ delay: 3.25, duration: 1.2, ease: [0.2, 0.8, 0.2, 1] }}
-              className="font-display text-[clamp(2.5rem,8vw,8.5rem)] font-light italic leading-[0.85] tracking-[-0.04em]"
-            >
-              <span className="gradient-text">for Legends.</span>
-            </motion.h1>
-          </div>
-
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 3.6, duration: 1, ease: [0.2, 0.8, 0.2, 1] }}
-            className="max-w-md text-balance text-sm leading-relaxed text-zinc-400 md:text-base"
-          >
-            Every note. Every vibration. Built with obsessive precision. AXIOM
-            represents the convergence of aerospace engineering and luthiery — a
-            new instrument for a new era.
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 3.8, duration: 1, ease: [0.2, 0.8, 0.2, 1] }}
-            className="mt-4 flex flex-wrap items-center gap-4"
-          >
-            <Magnetic strength={0.3}>
-              <button data-cursor="hover" className="btn-primary">
-                Explore Collection
-                <span className="ml-3 inline-block transition-transform group-hover:translate-x-1">→</span>
-              </button>
-            </Magnetic>
-            <Magnetic strength={0.3}>
-              <button data-cursor="hover" className="btn-ghost">
-                Experience the Craft
-              </button>
-            </Magnetic>
+          <motion.div initial={{ opacity: 0, y: 26 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.75, duration: 1, ease }} className="max-w-[25rem] lg:col-start-9 lg:col-span-4 lg:pb-3">
+            <p className="text-pretty text-sm leading-7 text-zinc-300 md:text-base">The instrument disappears. What remains is your intention — translated with absolute precision.</p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Magnetic strength={0.22}><button onClick={jumpToCollection} data-cursor="hover" data-cursor-label="Discover" className="btn-primary">Discover AXIOM <span className="ml-3 text-lg leading-none">↗</span></button></Magnetic>
+              <Magnetic strength={0.2}><button onClick={jumpToCraft} data-cursor="hover" className="btn-ghost px-5">The craft</button></Magnetic>
+            </div>
           </motion.div>
         </div>
       </motion.div>
 
-      {/* Bottom metadata row */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 4, duration: 1 }}
-        className="absolute bottom-6 left-6 right-6 z-10 flex items-end justify-between md:bottom-12 md:left-12 md:right-12"
-      >
-        <div className="flex items-center gap-3">
-          <motion.div
-            animate={{ y: [0, 8, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-            className="flex h-10 w-6 items-start justify-center rounded-full border border-zinc-700 p-1"
-          >
-            <div className="h-2 w-1 rounded-full bg-amber-glow" />
-          </motion.div>
-          <span className="font-mono text-[10px] uppercase tracking-[0.4em] text-zinc-500">
-            Scroll to experience
-          </span>
-        </div>
-
-        <div className="hidden md:flex items-end gap-12 text-right">
-          <div>
-            <div className="font-mono text-[9px] uppercase tracking-[0.4em] text-zinc-600">
-              Body
-            </div>
-            <div className="font-display text-2xl tracking-tight text-zinc-300">
-              Carbon<br />Composite
-            </div>
+      <motion.div style={{ opacity: detailsOpacity }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1, duration: 1 }} className="absolute bottom-8 left-6 right-6 z-20 flex items-end justify-between md:bottom-12 md:left-12 md:right-12">
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-9 w-5 justify-center rounded-full border border-white/20 pt-1"><motion.i animate={{ y: [0, 13, 0] }} transition={{ duration: 1.9, repeat: Infinity, ease: 'easeInOut' }} className="block h-1.5 w-px bg-amber-glow" /></span>
+            <span className="font-mono text-[9px] uppercase tracking-[0.34em] text-zinc-500">Drag the guitar / scroll to calibrate</span>
           </div>
-          <div>
-            <div className="font-mono text-[9px] uppercase tracking-[0.4em] text-zinc-600">
-              Neck
-            </div>
-            <div className="font-display text-2xl tracking-tight text-zinc-300">
-              Roasted<br />Maple
-            </div>
-          </div>
-          <div>
-            <div className="font-mono text-[9px] uppercase tracking-[0.4em] text-zinc-600">
-              Tuned
-            </div>
-            <div className="font-display text-2xl tracking-tight text-amber-glow">
-              432 Hz<br />Reference
-            </div>
-          </div>
+        <div className="hidden grid-cols-3 gap-x-10 border-l border-white/10 pl-8 md:grid">
+          {[['Body','Forged carbon'],['Profile','C / 0.83 in'],['Voice','AX-Custom A2']].map(([key, value]) => <div key={key}><p className="font-mono text-[8px] uppercase tracking-[0.3em] text-zinc-600">{key}</p><p className="mt-1 font-display text-lg text-zinc-200">{value}</p></div>)}
         </div>
       </motion.div>
     </section>
