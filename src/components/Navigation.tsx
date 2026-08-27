@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Magnetic from './Magnetic';
+import AudioToggle from './audio/AudioToggle';
 
 const links = [
   { label: 'Craft', href: '#craftsmanship' },
@@ -84,7 +85,8 @@ export default function Navigation() {
             ))}
           </nav>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 md:gap-4">
+            <AudioToggle />
             <span className="hidden md:block font-mono text-[10px] uppercase tracking-[0.3em] text-zinc-600">
               {time}
             </span>

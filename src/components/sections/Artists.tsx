@@ -1,7 +1,8 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
+import ArtistPlayer from '../audio/ArtistPlayer';
 
 const artists = [
   {
@@ -28,6 +29,8 @@ const artists = [
 ];
 
 export default function Artists() {
+  const [activePlayer, setActivePlayer] = useState<{ track: string; artist: string } | null>(null);
+
   return (
     <section
       id="artists"
@@ -63,13 +66,21 @@ export default function Artists() {
       </div>
 
       {/* Featured artist — parallax hero */}
-      <FeaturedArtist artist={artists[0]} />
+      <FeaturedArtist
+        artist={artists[0]}
+        onListen={() => setActivePlayer({ track: artists[0].track, artist: artists[0].name })}
+      />
 
       {/* Grid of remaining artists */}
       <div className="relative z-10 mx-auto mt-12 max-w-[1600px] px-6 md:px-12">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {artists.slice(1).map((a, i) => (
-            <ArtistCard key={a.name} artist={a} index={i} />
+            <ArtistCard
+              key={a.name}
+              artist={a}
+              index={i}
+              onListen={() => setActivePlayer({ track: a.track, artist: a.name })}
+            />
           ))}
         </div>
       </div>
@@ -87,18 +98,9 @@ export default function Artists() {
         </div>
         <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {[
-            'Mira Kawahara',
-            'Idris Hale',
-            'Niko Salvador',
-            'Lena Voss',
-            'Theo Marin',
-            'Ines Ortega',
-            'Kazuto Akiyama',
-            'Aria Soren',
-            'Jules Beaumont',
-            'Saskia Bloom',
-            'Avery Quill',
-            'Ren Asuka',
+            'Mira Kawahara', 'Idris Hale', 'Niko Salvador', 'Lena Voss',
+            'Theo Marin', 'Ines Ortega', 'Kazuto Akiyama', 'Aria Soren',
+            'Jules Beaumont', 'Saskia Bloom', 'Avery Quill', 'Ren Asuka',
           ].map((n, index) => (
             <div
               key={n}
@@ -114,11 +116,25 @@ export default function Artists() {
           ))}
         </div>
       </div>
+
+      {/* Artist Player Dock */}
+      <ArtistPlayer
+        trackTitle={activePlayer?.track || ''}
+        artistName={activePlayer?.artist || ''}
+        visible={!!activePlayer}
+        onClose={() => setActivePlayer(null)}
+      />
     </section>
   );
 }
 
-function FeaturedArtist({ artist }: { artist: (typeof artists)[number] }) {
+function FeaturedArtist({
+  artist,
+  onListen,
+}: {
+  artist: (typeof artists)[number];
+  onListen: () => void;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -156,7 +172,11 @@ function FeaturedArtist({ artist }: { artist: (typeof artists)[number] }) {
             {artist.quote}
           </p>
           <div className="mt-8 flex items-center gap-4">
-            <button data-cursor="hover" className="btn-ghost">
+            <button
+              data-cursor="hover"
+              className="btn-ghost"
+              onClick={onListen}
+            >
               Listen
             </button>
             <span className="font-mono text-[10px] uppercase tracking-[0.4em] text-zinc-500">
@@ -172,9 +192,11 @@ function FeaturedArtist({ artist }: { artist: (typeof artists)[number] }) {
 function ArtistCard({
   artist,
   index,
+  onListen,
 }: {
   artist: (typeof artists)[number];
   index: number;
+  onListen: () => void;
 }) {
   return (
     <motion.div
@@ -197,6 +219,18 @@ function ArtistCard({
         <p className="mt-4 line-clamp-3 text-sm text-zinc-300">
           {artist.quote}
         </p>
+        <div className="mt-4 flex items-center gap-3">
+          <button
+            data-cursor="hover"
+            className="rounded-full border border-white/10 px-4 py-1.5 font-mono text-[9px] uppercase tracking-[0.3em] text-zinc-400 transition-all hover:border-amber-glow/50 hover:text-amber-glow"
+            onClick={onListen}
+          >
+            Listen
+          </button>
+          <span className="font-mono text-[9px] uppercase tracking-[0.3em] text-zinc-600">
+            ↳ {artist.track}
+          </span>
+        </div>
       </div>
       <div className="absolute right-4 top-4 h-2 w-2 rounded-full bg-amber-glow opacity-0 transition-opacity group-hover:opacity-100" />
     </motion.div>
@@ -204,7 +238,6 @@ function ArtistCard({
 }
 
 function ArtistPortrait({ variant, parallax }: { variant: string; parallax?: any }) {
-  // Procedural portrait silhouettes — moody, cinematic
   const palettes: Record<string, { bg: string; skin: string; hair: string; accent: string }> = {
     kawahara: { bg: '#1a0a14', skin: '#e8c8a8', hair: '#0a0a0a', accent: '#ff5a00' },
     hale: { bg: '#0a141a', skin: '#8a6a4a', hair: '#1a1a1e', accent: '#5a8cff' },
@@ -226,7 +259,6 @@ function ArtistPortrait({ variant, parallax }: { variant: string; parallax?: any
           </linearGradient>
         </defs>
         <rect width="800" height="1000" fill={`url(#bg-${variant})`} />
-        {/* Atmospheric particles */}
         {[...Array(40)].map((_, i) => (
           <circle
             key={i}
@@ -237,24 +269,18 @@ function ArtistPortrait({ variant, parallax }: { variant: string; parallax?: any
             opacity={0.2 + (i % 3) * 0.2}
           />
         ))}
-        {/* Silhouette — back of subject with guitar */}
-        {/* Body */}
         <ellipse cx="400" cy="700" rx="180" ry="220" fill="#0a0a0a" opacity="0.95" />
-        {/* Head */}
         <ellipse cx="400" cy="380" rx="90" ry="120" fill={`url(#skin-${variant})`} opacity="0.85" />
-        {/* Hair */}
         <path
           d="M 310 340 Q 400 240, 490 340 L 480 380 Q 400 320, 320 380 Z"
           fill={p.hair}
           opacity="0.9"
         />
-        {/* Shoulders */}
         <path
           d="M 220 600 Q 400 500, 580 600 L 580 800 L 220 800 Z"
           fill="#0a0a0a"
           opacity="0.9"
         />
-        {/* Guitar neck (diagonal) */}
         <rect
           x="540"
           y="200"
@@ -273,9 +299,7 @@ function ArtistPortrait({ variant, parallax }: { variant: string; parallax?: any
           opacity="0.2"
           transform="rotate(15 560 450)"
         />
-        {/* Guitar body (over shoulder) */}
         <ellipse cx="600" cy="800" rx="120" ry="100" fill="#0a0a0a" transform="rotate(15 600 800)" />
-        {/* Rim light */}
         <ellipse cx="500" cy="320" rx="80" ry="120" fill={p.accent} opacity="0.15" />
       </svg>
     </motion.div>

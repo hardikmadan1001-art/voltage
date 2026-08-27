@@ -8,6 +8,8 @@ import Navigation from '@/components/Navigation';
 import GrainOverlay from '@/components/GrainOverlay';
 import Vignette from '@/components/Vignette';
 import ScrollProgress from '@/components/ScrollProgress';
+import { AudioProvider } from '@/components/audio/AudioProvider';
+import AudioConsentModal from '@/components/audio/AudioConsentModal';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -51,15 +53,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable} ${jetbrains.variable}`}>
       <body className="bg-ink-900 text-zinc-100 antialiased">
-        <Loader />
-        <SmoothScroll>
-          <CustomCursor />
-          <GrainOverlay />
-          <Vignette />
-          <ScrollProgress />
-          <Navigation />
-          <main className="relative">{children}</main>
-        </SmoothScroll>
+        <AudioProvider>
+          <Loader />
+          <SmoothScroll>
+            <CustomCursor />
+            <GrainOverlay />
+            <Vignette />
+            <ScrollProgress />
+            <Navigation />
+            <main className="relative">{children}</main>
+          </SmoothScroll>
+          <AudioConsentModal />
+        </AudioProvider>
       </body>
     </html>
   );

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Magnetic from '../Magnetic';
+import BuilderCanvasLazy from '../three/BuilderCanvasLazy';
 
 type Config = {
   body: string;
@@ -51,6 +52,13 @@ const options = {
 
 const basePrice = 14800;
 
+// Available serial numbers for reservation
+const serialNumbers = Array.from({ length: 10 }, (_, i) => ({
+  number: i + 42,
+  total: 180,
+  available: i !== 3 && i !== 7, // some are reserved
+}));
+
 export default function Builder() {
   const [config, setConfig] = useState<Config>({
     body: 'carbon',
@@ -60,6 +68,10 @@ export default function Builder() {
     neck: 'maple',
     inlay: 'pearl',
   });
+  const [wiping, setWiping] = useState(false);
+  const [wipeColor, setWipeColor] = useState('#0a0a0a');
+  const [reservationOpen, setReservationOpen] = useState(false);
+  const [selectedSerial, setSelectedSerial] = useState<number | null>(null);
 
   const total = useMemo(() => {
     return (
@@ -77,6 +89,21 @@ export default function Builder() {
     (options[k] as { id: string; name: string; color?: string; price: number }[]).find(
       (o) => o.id === config[k]
     )!;
+
+  // Laser wipe transition when changing finish
+  const handleOptionChange = useCallback((key: keyof Config, value: string) => {
+    if (key === 'finish') {
+      const newFinish = options.finish.find((o) => o.id === value);
+      setWipeColor(newFinish?.color || '#0a0a0a');
+      setWiping(true);
+      setTimeout(() => {
+        setConfig((c) => ({ ...c, [key]: value }));
+        setTimeout(() => setWiping(false), 600);
+      }, 100);
+    } else {
+      setConfig((c) => ({ ...c, [key]: value }));
+    }
+  }, []);
 
   return (
     <section
@@ -116,18 +143,56 @@ export default function Builder() {
           <div className="lg:col-span-7">
             <div className="sticky top-32 overflow-hidden rounded-3xl border border-white/5 bg-gradient-to-br from-graphite-800 to-ink-900">
               <div className="relative aspect-[4/5] md:aspect-[16/12]">
-                <BuilderPreview config={config} />
+                {/* 3D Canvas */}
+                <div className="absolute inset-0">
+                  <BuilderCanvasLazy
+                    className="h-full w-full"
+                    materialConfig={{
+                      bodyMaterial: config.body,
+                      bodyFinish: config.finish,
+                      hardwareFinish: config.hardware,
+                    }}
+                  />
+                </div>
+
+                {/* Laser wipe overlay */}
+                <AnimatePresence>
+                  {wiping && (
+                    <motion.div
+                      initial={{ clipPath: 'inset(0 100% 0 0)' }}
+                      animate={{ clipPath: 'inset(0 0% 0 0)' }}
+                      exit={{ clipPath: 'inset(0 0% 0 100%)' }}
+                      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+                      className="absolute inset-0 z-20"
+                    >
+                      {/* Laser line leading the wipe */}
+                      <motion.div
+                        initial={{ left: '100%' }}
+                        animate={{ left: '0%' }}
+                        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                        className="absolute top-0 bottom-0 w-1 bg-amber-glow shadow-[0_0_20px_#ff8a1c,0_0_60px_#ff8a1c]"
+                        style={{ zIndex: 30 }}
+                      />
+                      <div
+                        className="absolute inset-0"
+                        style={{ background: wipeColor }}
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {/* Top labels */}
-                <div className="absolute left-6 top-6 md:left-10 md:top-10">
+                <div className="absolute left-6 top-6 z-10 md:left-10 md:top-10">
                   <div className="font-mono text-[10px] uppercase tracking-[0.4em] text-amber-glow">
-                    Live preview
+                    Live 3D preview
                   </div>
                   <div className="mt-2 font-display text-3xl text-zinc-100">
                     AXIOM 01 — Bespoke
                   </div>
                 </div>
+
                 {/* Price tag */}
-                <div className="absolute bottom-6 left-6 right-6 flex items-end justify-between md:left-10 md:right-10">
+                <div className="absolute bottom-6 left-6 right-6 z-10 flex items-end justify-between md:left-10 md:right-10">
                   <div>
                     <div className="font-mono text-[10px] uppercase tracking-[0.4em] text-zinc-500">
                       Configured total
@@ -154,6 +219,9 @@ export default function Builder() {
                     </div>
                   </div>
                 </div>
+
+                {/* Gradient overlay for text readability */}
+                <div className="absolute inset-x-0 bottom-0 z-[5] h-1/3 bg-gradient-to-t from-ink-900/80 to-transparent pointer-events-none" />
               </div>
             </div>
           </div>
@@ -186,7 +254,7 @@ export default function Builder() {
                   {options[key].map((o) => (
                     <button
                       key={o.id}
-                      onClick={() => setConfig((c) => ({ ...c, [key]: o.id }))}
+                      onClick={() => handleOptionChange(key, o.id)}
                       data-cursor="hover"
                       className={`group flex items-center gap-3 rounded-full border px-4 py-2 text-xs transition-all ${
                         config[key] === o.id
@@ -209,7 +277,11 @@ export default function Builder() {
 
             <div className="flex flex-wrap items-center gap-4 pt-2">
               <Magnetic strength={0.3}>
-                <button data-cursor="hover" className="btn-primary">
+                <button
+                  data-cursor="hover"
+                  className="btn-primary"
+                  onClick={() => setReservationOpen(true)}
+                >
                   Reserve Serial
                 </button>
               </Magnetic>
@@ -222,108 +294,166 @@ export default function Builder() {
           </div>
         </div>
       </div>
+
+      {/* Reservation Modal */}
+      <AnimatePresence>
+        {reservationOpen && (
+          <motion.div
+            key="reservation-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.3 } }}
+            transition={{ duration: 0.4 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center px-4"
+            onClick={() => setReservationOpen(false)}
+          >
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/80 backdrop-blur-lg" />
+
+            {/* Modal */}
+            <motion.div
+              initial={{ opacity: 0, y: 40, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 20, scale: 0.97 }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 bg-[#0a0a0c]/95 p-8 shadow-[0_40px_160px_-20px_rgba(255,138,28,0.2)]"
+            >
+              {/* Decorative corners */}
+              <span className="pointer-events-none absolute left-4 top-4 h-4 w-4 border-l border-t border-amber-glow/40" />
+              <span className="pointer-events-none absolute right-4 top-4 h-4 w-4 border-r border-t border-amber-glow/40" />
+              <span className="pointer-events-none absolute bottom-4 left-4 h-4 w-4 border-b border-l border-amber-glow/40" />
+              <span className="pointer-events-none absolute bottom-4 right-4 h-4 w-4 border-b border-r border-amber-glow/40" />
+
+              {/* Close button */}
+              <button
+                onClick={() => setReservationOpen(false)}
+                className="absolute right-6 top-6 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 text-zinc-500 transition-colors hover:border-amber-glow/50 hover:text-amber-glow"
+              >
+                ✕
+              </button>
+
+              {/* Header */}
+              <div className="mb-8">
+                <div className="font-mono text-[10px] uppercase tracking-[0.4em] text-amber-glow">
+                  Limited Edition — 180 Instruments
+                </div>
+                <h3 className="mt-3 font-display text-4xl font-light tracking-[-0.03em] text-zinc-100 md:text-5xl">
+                  Reserve Your Serial
+                </h3>
+                <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+                  Each AXIOM bears a unique serial number, engraved into the headstock and registered on the certificate of authenticity.
+                </p>
+              </div>
+
+              {/* Serial number grid */}
+              <div className="mb-8">
+                <div className="font-mono text-[10px] uppercase tracking-[0.4em] text-zinc-500 mb-4">
+                  Available Serial Numbers
+                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+                  {serialNumbers.map((s) => (
+                    <button
+                      key={s.number}
+                      disabled={!s.available}
+                      onClick={() => setSelectedSerial(s.number)}
+                      data-cursor={s.available ? 'hover' : undefined}
+                      className={`group relative overflow-hidden rounded-xl border p-4 text-center transition-all ${
+                        !s.available
+                          ? 'border-white/5 bg-white/[0.02] opacity-30 cursor-not-allowed'
+                          : selectedSerial === s.number
+                          ? 'border-amber-glow bg-amber-glow/10 shadow-[0_0_30px_rgba(255,138,28,0.15)]'
+                          : 'border-white/10 bg-white/[0.03] hover:border-white/25'
+                      }`}
+                    >
+                      <div className="font-display text-lg text-zinc-100">
+                        N° {String(s.number).padStart(4, '0')}
+                      </div>
+                      <div className="mt-1 font-mono text-[8px] uppercase tracking-[0.3em] text-zinc-600">
+                        / 0{s.total}
+                      </div>
+                      {!s.available && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-ink-900/80">
+                          <span className="font-mono text-[9px] uppercase tracking-[0.3em] text-zinc-600">
+                            Reserved
+                          </span>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Certificate preview */}
+              <div className="mb-8 rounded-2xl border border-white/5 bg-gradient-to-br from-graphite-800 to-ink-900 p-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="font-mono text-[10px] uppercase tracking-[0.4em] text-zinc-500">
+                      Certificate of Authenticity
+                    </div>
+                    <div className="mt-3 font-display text-2xl text-zinc-100">
+                      AXIOM Series 01
+                    </div>
+                    {selectedSerial && (
+                      <div className="mt-1 font-display text-3xl text-amber-glow">
+                        N° {String(selectedSerial).padStart(4, '0')} / 0180
+                      </div>
+                    )}
+                  </div>
+                  <div className="h-16 w-16 rounded-full border border-amber-glow/30 bg-gradient-to-br from-amber-glow/20 to-amber-deep/10 flex items-center justify-center">
+                    <span className="font-display text-lg text-amber-glow">✦</span>
+                  </div>
+                </div>
+                <div className="mt-6 grid grid-cols-2 gap-4 border-t border-white/5 pt-4">
+                  <div>
+                    <div className="font-mono text-[9px] uppercase tracking-[0.3em] text-zinc-600">Configuration</div>
+                    <div className="mt-1 text-sm text-zinc-300">{get('body').name} / {get('finish').name}</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-[9px] uppercase tracking-[0.3em] text-zinc-600">Hardware</div>
+                    <div className="mt-1 text-sm text-zinc-300">{get('hardware').name}</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-[9px] uppercase tracking-[0.3em] text-zinc-600">Pickups</div>
+                    <div className="mt-1 text-sm text-zinc-300">{get('pickups').name}</div>
+                  </div>
+                  <div>
+                    <div className="font-mono text-[9px] uppercase tracking-[0.3em] text-zinc-600">Neck / Inlay</div>
+                    <div className="mt-1 text-sm text-zinc-300">{get('neck').name} / {get('inlay').name}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Deposit checkout */}
+              <div className="rounded-2xl border border-amber-glow/20 bg-gradient-to-br from-amber-glow/5 to-transparent p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-mono text-[10px] uppercase tracking-[0.4em] text-amber-glow">
+                      Reservation Deposit
+                    </div>
+                    <div className="mt-2 font-display text-4xl text-zinc-100">
+                      $2,500
+                    </div>
+                    <div className="mt-1 text-xs text-zinc-500">
+                      Fully refundable · Applied to final price
+                    </div>
+                  </div>
+                  <Magnetic strength={0.2}>
+                    <button
+                      data-cursor="hover"
+                      disabled={!selectedSerial}
+                      className={`btn-primary ${!selectedSerial ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    >
+                      {selectedSerial ? 'Checkout' : 'Select a serial'}
+                      <span className="ml-3 text-lg leading-none">↗</span>
+                    </button>
+                  </Magnetic>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
-  );
-}
-
-function BuilderPreview({ config }: { config: Config }) {
-  const body = options.body.find((o) => o.id === config.body)!;
-  const finish = options.finish.find((o) => o.id === config.finish)!;
-  const hardware = options.hardware.find((o) => o.id === config.hardware)!;
-  const neck = options.neck.find((o) => o.id === config.neck)!;
-  const inlay = options.inlay.find((o) => o.id === config.inlay)!;
-  const pickup = options.pickups.find((o) => o.id === config.pickups)!;
-  const bodyColor = (body as { color?: string }).color || '#1a1a20';
-  const finishColor = (finish as { color?: string }).color || '#0a0a0a';
-  const hardwareColor = (hardware as { color?: string }).color || '#e4e4e7';
-  const neckColor = (neck as { color?: string }).color || '#6a4a2a';
-  const inlayColor = (inlay as { color?: string }).color || '#f4f4f5';
-  const finishOpacity = config.finish === 'matte' ? 0.18 : config.finish === 'gloss' ? 0.42 : 0.3;
-  const bodyPath = `M 365 202
-    L 350 172 L 332 172 L 326 203
-    C 279 179 224 196 204 243
-    C 181 298 205 338 255 357
-    C 203 386 190 444 226 487
-    C 262 531 329 530 372 485
-    C 416 532 486 527 523 480
-    C 559 434 544 378 488 353
-    C 539 326 557 270 527 223
-    C 497 179 434 180 400 205
-    L 396 172 L 378 172 L 365 202 Z`;
-
-  return (
-    <svg viewBox="0 0 760 560" className="absolute inset-0 h-full w-full p-5 md:p-8">
-      <defs>
-        <linearGradient id="bBody" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor={bodyColor} />
-          <stop offset="45%" stopColor="#121215" />
-          <stop offset="100%" stopColor="#050505" />
-        </linearGradient>
-        <linearGradient id="bFinish" x1="0" y1="0" x2="0.9" y2="1">
-          <stop offset="0%" stopColor={finishColor} stopOpacity={finishOpacity} />
-          <stop offset="52%" stopColor="#ffffff" stopOpacity={config.finish === 'gloss' ? 0.16 : 0.03} />
-          <stop offset="100%" stopColor="transparent" />
-        </linearGradient>
-        <linearGradient id="bHardware" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="28%" stopColor={hardwareColor} />
-          <stop offset="100%" stopColor="#25252a" />
-        </linearGradient>
-        <linearGradient id="bNeck" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor={neckColor} />
-          <stop offset="50%" stopColor="#8a6a4a" />
-          <stop offset="100%" stopColor={neckColor} />
-        </linearGradient>
-        <pattern id="carbon-weave" width="11" height="11" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <rect width="11" height="11" fill="transparent" />
-          <path d="M0 2 H11 M0 8 H11" stroke="#c4c4cc" strokeOpacity=".14" strokeWidth="1.2" />
-        </pattern>
-        <filter id="builder-glow" x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="10" result="glow" />
-          <feMerge><feMergeNode in="glow" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
-      </defs>
-
-      <ellipse cx="370" cy="352" rx="265" ry="190" fill="#ff5a00" opacity="0.08" />
-      <ellipse cx="370" cy="350" rx="190" ry="145" fill={bodyColor} opacity="0.13" filter="url(#builder-glow)" />
-
-      {/* Full double-cut electric body */}
-      <g style={{ transition: 'all 0.5s ease' }}>
-        <path d={bodyPath} fill="url(#bBody)" stroke="#ff8a1c" strokeOpacity=".85" strokeWidth="2.2" />
-        <path d={bodyPath} fill="url(#bFinish)" />
-        {config.body === 'carbon' && <path d={bodyPath} fill="url(#carbon-weave)" opacity=".65" />}
-        <path d="M 255 357 C 300 326 450 325 488 353" fill="none" stroke="#ffffff" strokeOpacity=".1" strokeWidth="2" />
-      </g>
-
-      {/* Neck, ebony fretboard and a distinct headstock */}
-      <path d="M 350 205 L 350 55 L 398 55 L 400 205 Z" fill="url(#bNeck)" stroke="#d4af6a" strokeOpacity=".55" />
-      <rect x="358" y="55" width="32" height="150" rx="3" fill="#100d0b" />
-      {[...Array(13)].map((_, i) => <line key={i} x1="358" y1={68 + i * 10} x2="390" y2={68 + i * 10} stroke="#d4d4d8" strokeOpacity=".8" strokeWidth="1" />)}
-      {[3, 5, 7, 9, 12].map((f) => <circle key={f} cx="374" cy={68 + f * 10} r={f === 12 ? 3.5 : 2.6} fill={inlayColor} />)}
-      <path d="M 345 16 L 404 16 L 416 34 L 404 60 L 345 60 L 334 34 Z" fill="url(#bNeck)" stroke="#d4af6a" strokeOpacity=".65" />
-      {[0, 1, 2].map((i) => <g key={i}><circle cx="338" cy={28 + i * 10} r="3" fill="url(#bHardware)" /><circle cx="412" cy={28 + i * 10} r="3" fill="url(#bHardware)" /></g>)}
-
-      {/* Strings from nut to bridge */}
-      {[...Array(6)].map((_, i) => <line key={i} x1={360 + i * 6} y1="42" x2={360 + i * 6} y2="451" stroke="#f4f4f5" strokeOpacity=".6" strokeWidth={i === 0 ? 0.8 : 0.5} />)}
-
-      {/* Contoured pickguard and two real humbuckers */}
-      <path d="M 354 220 C 403 203 453 223 467 258 C 474 284 453 324 441 355 L 420 424 L 360 414 L 347 272 Z" fill="#111217" fillOpacity=".92" stroke="#ff8a1c" strokeOpacity=".4" />
-      {[286, 356].map((y) => (
-        <g key={y} transform={`translate(330 ${y})`}>
-          <rect width="90" height="28" rx="4" fill="#08080a" stroke="url(#bHardware)" strokeOpacity=".75" />
-          {[...Array(6)].map((_, i) => <circle key={i} cx={14 + i * 12.2} cy="14" r="2.6" fill="url(#bHardware)" />)}
-        </g>
-      ))}
-
-      {/* Selector, machined controls, and six-saddle bridge */}
-      <circle cx="446" cy="273" r="10" fill="url(#bHardware)" /><path d="M 446 267 L 454 278" stroke="#ff8a1c" strokeWidth="2" />
-      {[{ x: 445, y: 337 }, { x: 467, y: 364 }, { x: 456, y: 394 }].map(({ x, y }) => <circle key={`${x}-${y}`} cx={x} cy={y} r="12" fill="url(#bHardware)" stroke="#ffffff" strokeOpacity=".35" />)}
-      <g transform="translate(327 430)">
-        <rect width="102" height="23" rx="3" fill="#151519" stroke="url(#bHardware)" strokeOpacity=".9" />
-        {[...Array(6)].map((_, i) => <rect key={i} x={9 + i * 15} y="5" width="10" height="13" rx="1" fill="url(#bHardware)" />)}
-      </g>
-
-      <text x="528" y="475" fill="#ff8a1c" fontFamily="monospace" fontSize="10" letterSpacing="3">{pickup.name.toUpperCase()}</text>
-    </svg>
   );
 }
